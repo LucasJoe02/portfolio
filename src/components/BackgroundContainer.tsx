@@ -15,7 +15,7 @@ const BackgroundContainer = ({ children, }: Readonly<{ children: React.ReactNode
         alignItems: 'center',
         justifyContent: 'flex-start',
         marginTop: '60px',
-        paddingTop: '15vh'
+        paddingTop: '0vh'
       }}
     >
       {children}
