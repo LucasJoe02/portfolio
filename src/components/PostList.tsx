@@ -7,6 +7,7 @@ interface Item {
   title: string;
   description: string;
   img: string;
+  path: string;
 }
 
 interface PostListProps {
@@ -18,7 +19,7 @@ const PostList: React.FC<PostListProps> = ({ items }) => {
     <Grid container spacing={2}>
       {items.map(item => (
         <Grid item xs={12} sm={6} md={4} key={item.id}>
-          <PostCard title={item.title} description={item.description} img={item.img} />
+          <PostCard title={item.title} description={item.description} img={item.img} path={item.path}/>
         </Grid>
       ))}
     </Grid>
