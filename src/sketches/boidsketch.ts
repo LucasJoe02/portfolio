@@ -1,42 +1,45 @@
 const Boid = require('./boid');
 const QuadTree = require('./quadtree');
 
-export const boidsketch = (p) => {
-    const flock = [];
+export const boidsliders = [
+    { title: 'Separation', id: 'separation-slider' },
+    { title: 'Alignment', id: 'alignment-slider' },
+    { title: 'Cohesion', id: 'cohesion-slider' },
+    { title: 'Boids', id: 'boids-slider' },
+];
 
-    let sliders = [];
+export const boidsketch = (p: { setup: () => void; createCanvas: (arg0: number, arg1: number) => any; createSlider: (arg0: number, arg1: number, arg2: number, arg3: number) => any; createVector: (arg0: number, arg1: number) => any; width: number; height: number; draw: () => void; background: (arg0: number) => void; }) => {
+    const flock: any[] = [];
 
-    let alignSlider, cohesionSlider, seperationSlider, boidsSlider;
+    let sliders: any[] = [];
 
-    var tree;
-
-    function resetTree(){
-        // tree = new QuadTree(p,flock,createVector(p.width/2,p.height/2),p.width);
-    }
+    let tree;
 
     p.setup = () => {
         let canvas = p.createCanvas(400, 400);
         canvas.parent('sketch-container'); // Assign canvas to a div with id 'sketch-container'
 
-        sliders.push(p.createSlider(0, 5, 1, 0.1)); // Separation slider
-        sliders.push(p.createSlider(0, 5, 1, 0.1)); // Alignment slider
-        sliders.push(p.createSlider(0, 5, 1, 0.1)); // Cohesion slider
-        sliders.push(p.createSlider(0, 100, 5, 1)); // Boids slider
+        let separationSlider = p.createSlider(0, 5, 1, 0.1); // Separation slider
+        separationSlider.parent('separation-slider');
 
-        for (let i = 0; i < sliders.length; i++) {
-            sliders[i].parent('sliders-container'); // Assign each slider to slidersContainer div
-            sliders[i].style('display',); // Ensure each slider is displayed in a new line
-        }
+        let alignmentSlider = p.createSlider(0, 5, 1, 0.1); // Alignment slider
+        alignmentSlider.parent('alignment-slider');
+
+        let cohesionSlider = p.createSlider(0, 5, 1, 0.1); // Cohesion slider
+        cohesionSlider.parent('cohesion-slider');
+
+        let boidsSlider = p.createSlider(0, 100, 5, 1); // Boids slider
+        boidsSlider.parent('boids-slider');
+
+        sliders.push(separationSlider, alignmentSlider, cohesionSlider, boidsSlider);
 
         for (let i = 0; i < sliders[3].value(); i++) {
             flock.push(new Boid(p, sliders));
         }
         tree = new QuadTree(p, flock, p.createVector(p.width/2,p.height/2), p.width);
-        // setInterval(resetTree,100);
-        // noLoop();
     };
 
-    function overlaps(child,searchWindow){
+    function overlaps(child: { centre: any; size: number; },searchWindow: { centre: any; size: number; }){
         let isOverlapping = true;
         let chCe = child.centre;
         let chSi = child.size/2;
@@ -49,9 +52,9 @@ export const boidsketch = (p) => {
         return isOverlapping;
     }
 
-    function query(node, searchWindow){
+    function query(node: { isLeaf: any; points: any; inBox: (arg0: any, arg1: any, arg2: number) => any; children: any; }, searchWindow: { centre: any; size: any; }){
         if (node.isLeaf){
-            var matches = [];
+            let matches = [];
             for (let point of node.points){
                 if (node.inBox(point, searchWindow.centre, searchWindow.size/2)){
                     matches.push(point);
@@ -59,7 +62,7 @@ export const boidsketch = (p) => {
             }
         return matches;
         }else{
-            var matches = [];
+            let matches: any[] = [];
             for (let child of node.children){
                 if (overlaps(child, searchWindow)){
                     matches = matches.concat(query(child,searchWindow));
@@ -88,7 +91,6 @@ export const boidsketch = (p) => {
             //   p.rect(boid.position.x,boid.position.y,100);
             // }
             boid.edges();
-            // let closeBoids = flock
             let closeBoids = query(tree,{centre:p.createVector(boid.position.x,boid.position.y),size:100});
             boid.flock(closeBoids);
             boid.update();

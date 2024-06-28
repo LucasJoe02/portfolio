@@ -15,9 +15,9 @@ class QuadTree {
     this.maxLeafPoints = maxLeafPoints;
     this.children = [];
     this.points = [];
-    for (let i = 0; i < points.length; i++){
-      if (this.inBox(points[i],this.centre,this.size/2)){
-        this.points.push(points[i]);
+    for (const point of points){
+      if (this.inBox(point,this.centre,this.size/2)){
+        this.points.push(point);
       }
     }
     if (this.points.length > maxLeafPoints && this.depth < MAX_DEPTH){
@@ -48,7 +48,7 @@ class QuadTree {
     let size = this.size/4;
     let x = this.centre.x;
     let y = this.centre.y;
-    var childCentre;
+    let childCentre;
     if (i == 0){
       childCentre = p.createVector(x-size,y-size);
     }else if (i == 1){
