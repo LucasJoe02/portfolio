@@ -1,28 +1,28 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import Navbar from "@/components/Navbar";
-import styles from './page.module.css'
 
-const inter = Inter({ subsets: ["latin"] });
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import theme from '../theme';
+
+import MainLayout from "@/components/MainLayout";
 
 export const metadata: Metadata = {
   title: "Lucas Redding",
   description: "Lucas' portfolio",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children, }: Readonly<{ children: React.ReactNode; }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <Navbar />
-        <div className={styles.container}>
-          {children}
-        </div>
+      <body>
+        <AppRouterCacheProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <MainLayout>
+              {children}
+            </MainLayout>
+          </ThemeProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
