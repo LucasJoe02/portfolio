@@ -4,8 +4,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from '../theme';
 
-import Navbar from "@/components/Navbar";
-import BackgroundContainer from "@/components/BackgroundContainer";
+import MainLayout from "@/components/MainLayout";
 
 export const metadata: Metadata = {
   title: "Lucas Redding",
@@ -18,11 +17,10 @@ export default function RootLayout({ children, }: Readonly<{ children: React.Rea
       <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-          <CssBaseline />
-            <Navbar />
-            <BackgroundContainer>
+            <CssBaseline />
+            <MainLayout>
               {children}
-            </BackgroundContainer>
+            </MainLayout>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>
