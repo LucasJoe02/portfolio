@@ -8,7 +8,14 @@ export const boidsliders = [
     { title: 'Boids', id: 'boids-slider' },
 ];
 
-export const boidsketch = (p: { setup: () => void; createCanvas: (arg0: number, arg1: number) => any; createSlider: (arg0: number, arg1: number, arg2: number, arg3: number) => any; createVector: (arg0: number, arg1: number) => any; width: number; height: number; draw: () => void; background: (arg0: number) => void; }) => {
+export const boidsketch = (p: {
+    setup: () => void;
+    createCanvas: (width: number, height: number) => any;
+    createSlider: (min: number, max: number, value: number, step: number) => any;
+    createVector: (x: number, y: number) => any; width: number; height: number;
+    draw: () => void; 
+    background: (color: number) => void;
+}) => {
     const flock: any[] = [];
 
     let sliders: any[] = [];
@@ -16,7 +23,10 @@ export const boidsketch = (p: { setup: () => void; createCanvas: (arg0: number, 
     let tree;
 
     p.setup = () => {
-        let canvas = p.createCanvas(400, 400);
+        let canvasWidth = window.innerWidth < 600 ? window.innerWidth * 0.9 : 400; // Adjust dimensions for mobile
+        let canvasHeight = window.innerWidth < 600 ? window.innerHeight * 0.35 : 400; // Adjust dimensions for mobile
+        let canvas = p.createCanvas(canvasWidth, canvasHeight);
+
         canvas.parent('sketch-container'); // Assign canvas to a div with id 'sketch-container'
 
         let separationSlider = p.createSlider(0, 5, 1, 0.1); // Separation slider
