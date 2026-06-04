@@ -101,7 +101,7 @@ export const boidsketch = (p: {
             //   p.rect(boid.position.x,boid.position.y,100);
             // }
             boid.edges();
-            let closeBoids = query(tree,{centre:p.createVector(boid.position.x,boid.position.y),size:100});
+            let closeBoids = query(tree,{centre:p.createVector(boid.position.x,boid.position.y),size:200});
             boid.flock(closeBoids);
             boid.update();
             boid.show();

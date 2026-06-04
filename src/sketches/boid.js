@@ -43,7 +43,7 @@ class Boid {
         other.position.x,
         other.position.y
       );
-      if (other != this && d < perceptionRadius){
+      if (other != this && d > 0 && d < perceptionRadius){
         let diff = p5.Vector.sub(this.position, other.position);
         diff.div(d**2);
         alignment.add(other.velocity);
