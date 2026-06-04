@@ -21,7 +21,7 @@ class Camera {
 class Light {
   private type: string;
   private intensity: number;
-  private details: p5.Vector;
+  details: p5.Vector;
 
   constructor(type: string, intensity: number, details: p5.Vector) {
     this.type = type;
@@ -55,6 +55,7 @@ class Sphere {
 class Scene {
   private spheres: Sphere[];
   private lightList: Light[];
+  pointLight: Light;
 
   constructor(p: p5) {
     this.spheres = [
@@ -63,9 +64,10 @@ class Scene {
       new Sphere(-1, 0, 5, 1, [0, 0, 255, 255], 10),
       new Sphere(0, -5001, 0, 5000, [255, 255, 0, 255], 1000),
     ];
+    this.pointLight = new Light('point', 0.6, p.createVector(2, 1, 0));
     this.lightList = [
       new Light('ambient', 0.2, p.createVector(0, 0, 0)),
-      new Light('point', 0.6, p.createVector(2, 1, 0)),
+      this.pointLight,
       new Light('directional', 0.2, p.createVector(1, 4, 4)),
     ];
   }
@@ -74,10 +76,20 @@ class Scene {
   getLights() { return this.lightList; }
 }
 
-export const raytracersliders: { title: string; id: string }[] = [];
+export const raytracersliders: { title: string; id: string }[] = [
+  { title: 'Light X', id: 'light-x-slider' },
+  { title: 'Light Y', id: 'light-y-slider' },
+];
 
 export const raytracersketch = (p: p5) => {
-  function canvasToViewport(cam: Camera, x: number, y: number): p5.Vector {
+  let cam: Camera;
+  let scene: Scene;
+  let lightXSlider: any;
+  let lightYSlider: any;
+  let prevLightX: number;
+  let prevLightY: number;
+
+  function canvasToViewport(x: number, y: number): p5.Vector {
     return p.createVector(
       (x - p.width / 2) * cam.vw / p.width,
       (p.height / 2 - y) * cam.vh / p.height,
@@ -85,7 +97,7 @@ export const raytracersketch = (p: p5) => {
     );
   }
 
-  function computeLighting(P: p5.Vector, N: p5.Vector, V: p5.Vector, s: number, scene: Scene): number {
+  function computeLighting(P: p5.Vector, N: p5.Vector, V: p5.Vector, s: number): number {
     let intensity = 0.0;
     for (const lgt of scene.getLights()) {
       if (lgt.getType() === 'ambient') {
@@ -112,7 +124,7 @@ export const raytracersketch = (p: p5) => {
     return intensity;
   }
 
-  function intersectRaySphere(cam: Camera, D: p5.Vector, sph: Sphere): [number, number] {
+  function intersectRaySphere(D: p5.Vector, sph: Sphere): [number, number] {
     const r = sph.getRadius();
     const O = cam.getPos(p);
     const CO = O.copy().sub(sph.getCenter(p));
@@ -126,12 +138,12 @@ export const raytracersketch = (p: p5) => {
     return [t1, t2];
   }
 
-  function traceRay(cam: Camera, scene: Scene, D: p5.Vector, tMin: number, tMax: number): Color {
+  function traceRay(D: p5.Vector, tMin: number, tMax: number): Color {
     let closestT = Infinity;
     let closestSphere: Sphere | null = null;
 
     for (const sph of scene.getSpheres()) {
-      const [t1, t2] = intersectRaySphere(cam, D, sph);
+      const [t1, t2] = intersectRaySphere(D, sph);
       if (tMin < t1 && t1 < tMax && t1 < closestT) { closestT = t1; closestSphere = sph; }
       if (tMin < t2 && t2 < tMax && t2 < closestT) { closestT = t2; closestSphere = sph; }
     }
@@ -141,16 +153,16 @@ export const raytracersketch = (p: p5) => {
     const P = cam.getPos(p).add(D.copy().mult(closestT));
     const N = P.copy().sub(closestSphere.getCenter(p)).normalize();
 
-    const lightIntensity = computeLighting(P, N, D.copy().mult(-1), closestSphere.getSpecularity(), scene);
+    const lightIntensity = computeLighting(P, N, D.copy().mult(-1), closestSphere.getSpecularity());
     return closestSphere.getColor().map(x => x * lightIntensity) as Color;
   }
 
-  function display(cam: Camera, scene: Scene) {
+  function display() {
     p.loadPixels();
     for (let x = 0; x < p.width; x++) {
       for (let y = 0; y < p.height; y++) {
-        const D = canvasToViewport(cam, x, y);
-        const col = traceRay(cam, scene, D, 1, Infinity);
+        const D = canvasToViewport(x, y);
+        const col = traceRay(D, 1, Infinity);
         const index = (x + y * p.width) * 4;
         p.pixels[index]     = col[0];
         p.pixels[index + 1] = col[1];
@@ -162,12 +174,31 @@ export const raytracersketch = (p: p5) => {
   }
 
   p.setup = () => {
-    const canvas = p.createCanvas(500, 500);
+    const canvas = p.createCanvas(250, 250);
     canvas.parent('sketch-container');
-    p.background(200);
     p.pixelDensity(1);
-    const cam = new Camera(0, 0, 0, 1, 1, 1);
-    const scene = new Scene(p);
-    display(cam, scene);
+
+    lightXSlider = p.createSlider(-3, 3, 2, 0.1);
+    lightXSlider.parent('light-x-slider');
+    lightYSlider = p.createSlider(-3, 3, 1, 0.1);
+    lightYSlider.parent('light-y-slider');
+
+    prevLightX = lightXSlider.value();
+    prevLightY = lightYSlider.value();
+
+    cam = new Camera(0, 0, 0, 1, 1, 1);
+    scene = new Scene(p);
+    display();
+  };
+
+  p.draw = () => {
+    const lx: number = lightXSlider.value();
+    const ly: number = lightYSlider.value();
+    if (lx !== prevLightX || ly !== prevLightY) {
+      prevLightX = lx;
+      prevLightY = ly;
+      scene.pointLight.details.set(lx, ly, 0);
+      display();
+    }
   };
 };
