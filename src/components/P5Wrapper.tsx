@@ -22,12 +22,12 @@ const P5Wrapper: React.FC<P5WrapperProps> = ({ sketch, sliders }) => {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <Box sx={{ width: '100%', maxWidth: '80%' }}>
-        <Box id="sketch-container" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}></Box>
-        <Grid container>
+        <Box id="sketch-container" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', '& canvas': { width: '500px !important', height: '500px !important', imageRendering: 'pixelated' } }}></Box>
+        <Grid container justifyContent="center">
           {sliders.map((slider) => (
-            <Grid item xs={12} sm={6} md={3} key={slider.id}>
+            <Grid item xs={12} sm={6} md={3} key={slider.id} sx={{ textAlign: 'center' }}>
                 <Typography variant="h6">{slider.title}</Typography>
-                <div id={slider.id}></div>
+                <div id={slider.id} style={{ display: 'flex', justifyContent: 'center' }}></div>
             </Grid>
           ))}
         </Grid>
