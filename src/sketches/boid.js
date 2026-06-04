@@ -64,8 +64,9 @@ class Boid {
       seperation.limit(this.maxForce);
 
       cohesion.div(total);
+      const distToCenter = p5.Vector.dist(cohesion, this.position);
       cohesion.sub(this.position);
-      cohesion.setMag(this.maxSpeed)
+      cohesion.setMag(this.maxSpeed * Math.min(distToCenter / perceptionRadius, 1.0));
       cohesion.sub(this.velocity);
       cohesion.limit(this.maxForce);
     }
