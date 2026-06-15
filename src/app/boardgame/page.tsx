@@ -285,9 +285,12 @@ export default function BoardGamePage() {
         y = snapped.y;
 
         if (d.instanceId) {
-          setPlaced(p => p.map(piece =>
-            piece.instanceId === d.instanceId ? { ...piece, x, y } : piece
-          ));
+          // Move to end of array so it renders on top
+          setPlaced(p => {
+            const rest = p.filter(piece => piece.instanceId !== d.instanceId);
+            const moved = p.find(piece => piece.instanceId === d.instanceId)!;
+            return [...rest, { ...moved, x, y }];
+          });
         } else {
           const instanceId = `p${idCounter++}`;
           setPlaced(p => [...p, { instanceId, defId: d.defId, x, y }]);
