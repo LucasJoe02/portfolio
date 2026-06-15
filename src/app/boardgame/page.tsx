@@ -107,7 +107,19 @@ function PieceShape({ def, w, h, glowing }: { def: PieceDef; w: number; h: numbe
 
 // ─── Snap Logic ──────────────────────────────────────────────────────────────
 
-const SNAP_DIST = 22;
+const SNAP_DIST = 25;
+const HEX_SNAP_DIST = 30;
+
+// The 6 neighbour offsets for our flat-side-top/bottom hex, as (dx/w, dy/h) multipliers.
+// Derived from vertex geometry: points at left/right, flat edges top/bottom.
+const HEX_NEIGHBOUR_OFFSETS: [number, number][] = [
+  [0,      -1  ],  // top
+  [0.75,  -0.5 ],  // top-right
+  [0.75,   0.5 ],  // bottom-right
+  [0,      1   ],  // bottom
+  [-0.75,  0.5 ],  // bottom-left
+  [-0.75, -0.5 ],  // top-left
+];
 
 function snapPosition(
   x: number, y: number,
@@ -117,13 +129,34 @@ function snapPosition(
 ): { x: number; y: number } {
   if (def.shape === 'circle') return { x, y };
 
+  // ── Hex snap: find the closest valid neighbour slot among all placed hexes ──
+  if (def.shape === 'hex') {
+    let best = HEX_SNAP_DIST;
+    let sx = x, sy = y;
+
+    for (const other of placed) {
+      if (other.instanceId === excludeId) continue;
+      const od = DEF_MAP[other.defId];
+      if (!od || od.shape !== 'hex') continue;
+
+      for (const [mx, my] of HEX_NEIGHBOUR_OFFSETS) {
+        const cx = other.x + mx * od.width;
+        const cy = other.y + my * od.height;
+        const dist = Math.hypot(x - cx, y - cy);
+        if (dist < best) { best = dist; sx = cx; sy = cy; }
+      }
+    }
+    return { x: sx, y: sy };
+  }
+
+  // ── Rectangle snap: align bounding-box edges ─────────────────────────────
   let sx = x, sy = y;
   let bestX = SNAP_DIST, bestY = SNAP_DIST;
 
   for (const other of placed) {
     if (other.instanceId === excludeId) continue;
     const od = DEF_MAP[other.defId];
-    if (!od || od.shape === 'circle') continue;
+    if (!od || od.shape === 'circle' || od.shape === 'hex') continue;
 
     const candidates: [number, 'x' | 'y', number][] = [
       [Math.abs((x + def.width) - other.x),                  'x', other.x - def.width],
