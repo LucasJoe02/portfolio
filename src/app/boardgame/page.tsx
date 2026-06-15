@@ -22,6 +22,7 @@ interface PlacedPiece {
   defId: string;
   x: number;
   y: number;
+  rotation: number; // 0 | 90 | 180 | 270
 }
 
 interface DragState {
@@ -29,6 +30,7 @@ interface DragState {
   instanceId: string | null; // null = from inventory
   ghostX: number;
   ghostY: number;
+  rotation: number;
 }
 
 interface Transform {
@@ -289,22 +291,31 @@ export default function BoardGamePage() {
           setPlaced(p => {
             const rest = p.filter(piece => piece.instanceId !== d.instanceId);
             const moved = p.find(piece => piece.instanceId === d.instanceId)!;
-            return [...rest, { ...moved, x, y }];
+            return [...rest, { ...moved, x, y, rotation: d.rotation }];
           });
         } else {
           const instanceId = `p${idCounter++}`;
-          setPlaced(p => [...p, { instanceId, defId: d.defId, x, y }]);
+          setPlaced(p => [...p, { instanceId, defId: d.defId, x, y, rotation: d.rotation }]);
           setInv(inv => ({ ...inv, [d.defId]: inv[d.defId] - 1 }));
         }
       }
       setDrag(null);
     };
 
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'r' || e.key === 'R') && dragRef.current) {
+        e.preventDefault();
+        setDrag(d => d ? { ...d, rotation: (d.rotation + 90) % 360 } : null);
+      }
+    };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('keydown', onKeyDown);
     };
   }, []); // empty — reads from refs
 
@@ -313,13 +324,13 @@ export default function BoardGamePage() {
   const startFromInventory = (defId: string, e: React.MouseEvent) => {
     e.preventDefault();
     if (inv[defId] <= 0) return;
-    setDrag({ defId, instanceId: null, ghostX: e.clientX, ghostY: e.clientY });
+    setDrag({ defId, instanceId: null, ghostX: e.clientX, ghostY: e.clientY, rotation: 0 });
   };
 
   const startFromBoard = (piece: PlacedPiece, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY });
+    setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY, rotation: piece.rotation });
   };
 
   const startPan = (e: React.MouseEvent) => {
@@ -419,8 +430,9 @@ export default function BoardGamePage() {
           })}
         </Box>
 
-        <Box sx={{ px: 2, py: 1, borderTop: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.2)', fontSize: 10, lineHeight: 1.5 }}>
-          Drag onto board · Drag back to return
+        <Box sx={{ px: 2, py: 1, borderTop: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.2)', fontSize: 10, lineHeight: 1.8 }}>
+          Drag onto board · Drag back to return<br />
+          Hold &amp; press <Box component="span" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', px: 0.5, fontSize: 10 }}>R</Box> to rotate
         </Box>
       </Box>
 
@@ -465,6 +477,8 @@ export default function BoardGamePage() {
                   opacity: isGhost ? 0.15 : 1,
                   transition: 'opacity 0.1s',
                   zIndex: isGhost ? 0 : 1,
+                  transform: `rotate(${piece.rotation}deg)`,
+                  transformOrigin: 'center center',
                   '&:hover': { filter: 'brightness(1.15)' },
                 }}
               >
@@ -491,18 +505,57 @@ export default function BoardGamePage() {
 
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {drag && dragDef && (
-        <Box sx={{
-          position: 'fixed',
-          left: drag.ghostX - gw / 2,
-          top: drag.ghostY - gh / 2,
-          width: gw,
-          height: gh,
-          pointerEvents: 'none',
-          zIndex: 9999,
-          opacity: 0.9,
-        }}>
-          <PieceShape def={dragDef} w={gw} h={gh} glowing />
-        </Box>
+        <>
+          <Box sx={{
+            position: 'fixed',
+            left: drag.ghostX - gw / 2,
+            top: drag.ghostY - gh / 2,
+            width: gw,
+            height: gh,
+            pointerEvents: 'none',
+            zIndex: 9999,
+            opacity: 0.9,
+            transform: `rotate(${drag.rotation}deg)`,
+            transformOrigin: 'center center',
+          }}>
+            <PieceShape def={dragDef} w={gw} h={gh} glowing />
+          </Box>
+          {/* R-to-rotate hint badge */}
+          <Box sx={{
+            position: 'fixed',
+            left: drag.ghostX + gw / 2 + 10,
+            top: drag.ghostY - gh / 2,
+            pointerEvents: 'none',
+            zIndex: 9999,
+            bgcolor: 'rgba(0,0,0,0.75)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 1,
+            px: 1,
+            py: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            whiteSpace: 'nowrap',
+          }}>
+            <Box sx={{
+              bgcolor: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: '3px',
+              px: 0.75,
+              py: 0.25,
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'rgba(255,255,255,0.9)',
+              fontFamily: 'monospace',
+              lineHeight: 1,
+            }}>
+              R
+            </Box>
+            <Box sx={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+              rotate {drag.rotation}°
+            </Box>
+          </Box>
+        </>
       )}
     </Box>
   );
