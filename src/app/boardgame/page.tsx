@@ -254,6 +254,90 @@ interface DiceResult {
   rolls: number[];
 }
 
+const DICE_STYLE: Record<number, { color: string; stroke: string }> = {
+  4:  { color: '#c0392b', stroke: '#7b241c' },
+  6:  { color: '#2980b9', stroke: '#1a5276' },
+  8:  { color: '#27ae60', stroke: '#1a6e3e' },
+  10: { color: '#d35400', stroke: '#873600' },
+  12: { color: '#8e44ad', stroke: '#5b2c6f' },
+  20: { color: '#f39c12', stroke: '#9a6100' },
+};
+
+// Regular polygon points centred in a size×size box
+function polyPoints(n: number, size: number, rotate = -90): string {
+  const r = size / 2 - 2;
+  return Array.from({ length: n }, (_, i) => {
+    const a = ((360 / n) * i + rotate) * (Math.PI / 180);
+    return `${size / 2 + r * Math.cos(a)},${size / 2 + r * Math.sin(a)}`;
+  }).join(' ');
+}
+
+function DieFace({ sides, size }: { sides: number; size: number }) {
+  const st = DICE_STYLE[sides];
+  if (sides === 6) {
+    return <rect x={2} y={2} width={size - 4} height={size - 4} rx={size * 0.18} fill={st.color} stroke={st.stroke} strokeWidth={2} />;
+  }
+  const shapeSides = sides === 4 ? 3 : sides === 8 ? 4 : sides === 10 ? 4 : sides === 12 ? 5 : 6;
+  const rotate = sides === 8 ? -90 : sides === 10 ? 0 : -90; // d8 diamond upright, d10 kite on its side
+  return <polygon points={polyPoints(shapeSides, size, rotate)} fill={st.color} stroke={st.stroke} strokeWidth={2} />;
+}
+
+// A die that tumbles and cycles numbers before settling on its final value.
+function RollingDie({ sides, value, delay, rollId }: { sides: number; value: number; delay: number; rollId: number }) {
+  const [display, setDisplay] = useState(value);
+  const [rolling, setRolling] = useState(false);
+
+  useEffect(() => {
+    setRolling(true);
+    const iv = setInterval(() => setDisplay(1 + Math.floor(Math.random() * sides)), 60);
+    const stop = setTimeout(() => {
+      clearInterval(iv);
+      setDisplay(value);
+      setRolling(false);
+    }, 450 + delay);
+    return () => { clearInterval(iv); clearTimeout(stop); };
+  }, [rollId, sides, value, delay]);
+
+  const size = 38;
+  // d4 triangle: centroid sits low, nudge text down a little
+  const textY = sides === 4 ? size * 0.58 : size / 2;
+
+  return (
+    <Box sx={{
+      width: size,
+      height: size,
+      animation: rolling ? 'diceTumble 0.3s linear infinite' : 'diceLand 0.25s ease-out',
+      '@keyframes diceTumble': {
+        '0%':   { transform: 'rotate(0deg) scale(1)' },
+        '25%':  { transform: 'rotate(90deg) scale(0.85)' },
+        '50%':  { transform: 'rotate(180deg) scale(1.05)' },
+        '75%':  { transform: 'rotate(270deg) scale(0.9)' },
+        '100%': { transform: 'rotate(360deg) scale(1)' },
+      },
+      '@keyframes diceLand': {
+        '0%':   { transform: 'scale(1.35)' },
+        '60%':  { transform: 'scale(0.92)' },
+        '100%': { transform: 'scale(1)' },
+      },
+    }}>
+      <svg width={size} height={size} style={{ display: 'block' }}>
+        <DieFace sides={sides} size={size} />
+        <text
+          x={size / 2} y={textY}
+          dominantBaseline="central"
+          textAnchor="middle"
+          fontSize={sides === 4 ? 11 : 13}
+          fontWeight="bold"
+          fill="#fff"
+          fontFamily="sans-serif"
+        >
+          {display}
+        </text>
+      </svg>
+    </Box>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 let idCounter = 0;
@@ -281,6 +365,8 @@ export default function BoardGamePage() {
   );
   const [diceResults, setDiceResults] = useState<DiceResult[] | null>(null);
   const [diceOpen, setDiceOpen] = useState(false);
+  const [rollId, setRollId] = useState(0);
+  const [showTotal, setShowTotal] = useState(false);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -437,7 +523,12 @@ export default function BoardGamePage() {
         sides: s,
         rolls: Array.from({ length: diceCounts[s] }, () => 1 + Math.floor(Math.random() * s)),
       }));
-    if (results.length) setDiceResults(results);
+    if (!results.length) return;
+    setDiceResults(results);
+    setRollId(id => id + 1);
+    setShowTotal(false);
+    const diceCount = results.reduce((a, r) => a + r.rolls.length, 0);
+    setTimeout(() => setShowTotal(true), 450 + diceCount * 120 + 250);
   };
 
   const commitEditText = () => {
@@ -745,15 +836,28 @@ export default function BoardGamePage() {
 
           {diceResults && (
             <Box sx={{ px: 1.5, pb: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)', pt: 1 }}>
-              {diceResults.map(r => (
-                <Box key={r.sides} sx={{ display: 'flex', gap: 1, fontSize: 12, lineHeight: 1.8 }}>
-                  <Box sx={{ color: 'rgba(255,255,255,0.45)', width: 32, flexShrink: 0 }}>d{r.sides}</Box>
-                  <Box sx={{ color: '#fff', flex: 1 }}>{r.rolls.join(', ')}</Box>
-                  <Box sx={{ color: 'rgba(100,210,130,0.85)' }}>{r.rolls.reduce((a, b) => a + b, 0)}</Box>
-                </Box>
-              ))}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, justifyContent: 'center' }}>
+                {diceResults.flatMap((r, ri) =>
+                  r.rolls.map((v, i) => (
+                    <RollingDie
+                      key={`${rollId}-${r.sides}-${i}`}
+                      sides={r.sides}
+                      value={v}
+                      delay={(diceResults.slice(0, ri).reduce((a, x) => a + x.rolls.length, 0) + i) * 120}
+                      rollId={rollId}
+                    />
+                  ))
+                )}
+              </Box>
               {(diceResults.length > 1 || diceResults[0].rolls.length > 1) && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: 12 }}>
+                <Box sx={{
+                  display: 'flex', justifyContent: 'space-between',
+                  mt: 1, pt: 0.5,
+                  borderTop: '1px solid rgba(255,255,255,0.07)',
+                  fontSize: 12,
+                  opacity: showTotal ? 1 : 0,
+                  transition: 'opacity 0.3s',
+                }}>
                   <Box sx={{ color: 'rgba(255,255,255,0.45)' }}>Total</Box>
                   <Box sx={{ color: '#8ec9ff', fontWeight: 700 }}>
                     {diceResults.flatMap(r => r.rolls).reduce((a, b) => a + b, 0)}
