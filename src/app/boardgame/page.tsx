@@ -370,7 +370,9 @@ export default function BoardGamePage() {
       if (e.target instanceof HTMLInputElement) return;
       if ((e.key === 'r' || e.key === 'R') && dragRef.current) {
         e.preventDefault();
-        setDrag(d => d ? { ...d, rotation: (d.rotation + 90) % 360 } : null);
+        // Roads rotate in 30° steps so they can align with hex edges (0/60/120°)
+        const step = DEF_MAP[dragRef.current.defId].id === 'road' ? 30 : 90;
+        setDrag(d => d ? { ...d, rotation: (d.rotation + step) % 360 } : null);
       }
     };
 
