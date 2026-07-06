@@ -245,6 +245,15 @@ function snapPosition(
   return { x: sx, y: sy };
 }
 
+// ─── Dice ────────────────────────────────────────────────────────────────────
+
+const DICE_TYPES = [4, 6, 8, 10, 12, 20] as const;
+
+interface DiceResult {
+  sides: number;
+  rolls: number[];
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 let idCounter = 0;
@@ -267,6 +276,11 @@ export default function BoardGamePage() {
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editing, setEditing] = useState<{ instanceId: string; value: string; sx: number; sy: number } | null>(null);
+  const [diceCounts, setDiceCounts] = useState<Record<number, number>>(
+    () => Object.fromEntries(DICE_TYPES.map(s => [s, 0]))
+  );
+  const [diceResults, setDiceResults] = useState<DiceResult[] | null>(null);
+  const [diceOpen, setDiceOpen] = useState(false);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -414,6 +428,16 @@ export default function BoardGamePage() {
     e.stopPropagation();
     setDrag(null);
     setEditing({ instanceId: piece.instanceId, value: piece.text ?? '', sx: e.clientX, sy: e.clientY });
+  };
+
+  const rollDice = () => {
+    const results: DiceResult[] = DICE_TYPES
+      .filter(s => diceCounts[s] > 0)
+      .map(s => ({
+        sides: s,
+        rolls: Array.from({ length: diceCounts[s] }, () => 1 + Math.floor(Math.random() * s)),
+      }));
+    if (results.length) setDiceResults(results);
   };
 
   const commitEditText = () => {
@@ -624,6 +648,121 @@ export default function BoardGamePage() {
             <Box sx={{ fontSize: 12 }}>Scroll to zoom · Right-click drag to pan</Box>
           </Box>
         )}
+        {/* ── Dice roller ─────────────────────────────────────────────── */}
+        <Box
+          onMouseDown={e => e.stopPropagation()}
+          sx={{
+            position: 'absolute',
+            right: 16,
+            bottom: 16,
+            width: 220,
+            bgcolor: 'rgba(12, 18, 28, 0.95)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 1.5,
+            zIndex: 20,
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          }}
+        >
+          <Box
+            onClick={() => setDiceOpen(o => !o)}
+            sx={{
+              px: 1.5, py: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.5)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 2,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+            }}
+          >
+            <span>DICE</span>
+            <span>{diceOpen ? '▾' : '▴'}</span>
+          </Box>
+
+          {diceOpen && (
+            <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              {DICE_TYPES.map(s => (
+                <Box key={s} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600 }}>
+                    d{s}
+                  </Box>
+                  {(['-', '+'] as const).map(op => (
+                    <Box
+                      key={op}
+                      onClick={() => setDiceCounts(dc => ({
+                        ...dc,
+                        [s]: Math.max(0, Math.min(20, dc[s] + (op === '+' ? 1 : -1))),
+                      }))}
+                      sx={{
+                        width: 20, height: 20,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: '4px',
+                        bgcolor: 'rgba(255,255,255,0.08)',
+                        color: 'rgba(255,255,255,0.7)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        order: op === '-' ? 0 : 2,
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.16)' },
+                      }}
+                    >
+                      {op}
+                    </Box>
+                  ))}
+                  <Box sx={{
+                    order: 1, width: 24, textAlign: 'center', fontSize: 12,
+                    color: diceCounts[s] > 0 ? '#fff' : 'rgba(255,255,255,0.25)',
+                  }}>
+                    {diceCounts[s]}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          <Box
+            onClick={rollDice}
+            sx={{
+              mx: 1.5, mb: diceResults ? 1 : 1.5, mt: diceOpen ? 0.5 : 0,
+              py: 0.75,
+              textAlign: 'center',
+              borderRadius: 1,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              bgcolor: Object.values(diceCounts).some(c => c > 0) ? 'rgba(100,180,255,0.2)' : 'rgba(255,255,255,0.04)',
+              color: Object.values(diceCounts).some(c => c > 0) ? '#8ec9ff' : 'rgba(255,255,255,0.25)',
+              border: '1px solid rgba(100,180,255,0.25)',
+              cursor: Object.values(diceCounts).some(c => c > 0) ? 'pointer' : 'not-allowed',
+              '&:hover': Object.values(diceCounts).some(c => c > 0) ? { bgcolor: 'rgba(100,180,255,0.3)' } : {},
+            }}
+          >
+            ROLL
+          </Box>
+
+          {diceResults && (
+            <Box sx={{ px: 1.5, pb: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)', pt: 1 }}>
+              {diceResults.map(r => (
+                <Box key={r.sides} sx={{ display: 'flex', gap: 1, fontSize: 12, lineHeight: 1.8 }}>
+                  <Box sx={{ color: 'rgba(255,255,255,0.45)', width: 32, flexShrink: 0 }}>d{r.sides}</Box>
+                  <Box sx={{ color: '#fff', flex: 1 }}>{r.rolls.join(', ')}</Box>
+                  <Box sx={{ color: 'rgba(100,210,130,0.85)' }}>{r.rolls.reduce((a, b) => a + b, 0)}</Box>
+                </Box>
+              ))}
+              {(diceResults.length > 1 || diceResults[0].rolls.length > 1) && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: 12 }}>
+                  <Box sx={{ color: 'rgba(255,255,255,0.45)' }}>Total</Box>
+                  <Box sx={{ color: '#8ec9ff', fontWeight: 700 }}>
+                    {diceResults.flatMap(r => r.rolls).reduce((a, b) => a + b, 0)}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* ── Text edit overlay ───────────────────────────────────────────── */}
