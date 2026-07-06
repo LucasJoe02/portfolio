@@ -15,6 +15,14 @@ interface PieceDef {
   height: number;
   total: number;
   label?: string;
+  colourable?: boolean; // colour picked from COLOURS at drag time
+}
+
+interface ColourOption {
+  key: string;
+  name: string;
+  color: string;
+  stroke: string;
 }
 
 interface PlacedPiece {
@@ -24,6 +32,7 @@ interface PlacedPiece {
   y: number;
   rotation: number; // 0 | 90 | 180 | 270
   text?: string;
+  colour?: string; // COLOURS key, for colourable defs
 }
 
 interface DragState {
@@ -32,6 +41,7 @@ interface DragState {
   ghostX: number;
   ghostY: number;
   rotation: number;
+  colour?: string;
 }
 
 interface Transform {
@@ -52,19 +62,32 @@ const PIECE_DEFS: PieceDef[] = [
   { id: 'wheat',    name: 'Wheat',       shape: 'hex',    color: '#e0b83c', stroke: '#a5821e', width: 80,  height: 70, total: 4 },
   { id: 'room',     name: 'Room',        shape: 'square', color: '#c4a882', stroke: '#7a5010', width: 80,  height: 80, total: 8, label: 'Room' },
   { id: 'corridor', name: 'Corridor',    shape: 'rect',   color: '#d4b896', stroke: '#7a5010', width: 160, height: 80, total: 4, label: 'Corridor' },
-  { id: 'red',      name: 'Red Pawn',    shape: 'circle', color: '#c0392b', stroke: '#7b241c', width: 40,  height: 40, total: 4 },
-  { id: 'blue',     name: 'Blue Pawn',   shape: 'circle', color: '#2980b9', stroke: '#1a5276', width: 40,  height: 40, total: 4 },
-  { id: 'green',    name: 'Green Pawn',  shape: 'circle', color: '#27ae60', stroke: '#1a6e3e', width: 40,  height: 40, total: 4 },
-  { id: 'yellow',   name: 'Yellow Pawn', shape: 'circle', color: '#f39c12', stroke: '#9a6100', width: 40,  height: 40, total: 4 },
-  { id: 'grey',     name: 'Grey Pawn',   shape: 'circle', color: '#95a5a6', stroke: '#5d6d6e', width: 40,  height: 40, total: 4 },
-  { id: 'road-red',    name: 'Red Road',    shape: 'rect', color: '#c0392b', stroke: '#7b241c', width: 70, height: 14, total: 8 },
-  { id: 'road-blue',   name: 'Blue Road',   shape: 'rect', color: '#2980b9', stroke: '#1a5276', width: 70, height: 14, total: 8 },
-  { id: 'road-green',  name: 'Green Road',  shape: 'rect', color: '#27ae60', stroke: '#1a6e3e', width: 70, height: 14, total: 8 },
-  { id: 'road-yellow', name: 'Yellow Road', shape: 'rect', color: '#f39c12', stroke: '#9a6100', width: 70, height: 14, total: 8 },
-  { id: 'road-grey',   name: 'Grey Road',   shape: 'rect', color: '#95a5a6', stroke: '#5d6d6e', width: 70, height: 14, total: 8 },
+  { id: 'pawn', name: 'Pawn', shape: 'circle', color: '#c0392b', stroke: '#7b241c', width: 40, height: 40, total: 4, colourable: true },
+  { id: 'road', name: 'Road', shape: 'rect',   color: '#c0392b', stroke: '#7b241c', width: 70, height: 14, total: 8, colourable: true },
 ];
 
+const COLOURS: ColourOption[] = [
+  { key: 'red',    name: 'Red',    color: '#c0392b', stroke: '#7b241c' },
+  { key: 'blue',   name: 'Blue',   color: '#2980b9', stroke: '#1a5276' },
+  { key: 'green',  name: 'Green',  color: '#27ae60', stroke: '#1a6e3e' },
+  { key: 'yellow', name: 'Yellow', color: '#f39c12', stroke: '#9a6100' },
+  { key: 'grey',   name: 'Grey',   color: '#95a5a6', stroke: '#5d6d6e' },
+];
+
+const COLOUR_MAP: Record<string, ColourOption> = Object.fromEntries(COLOURS.map(c => [c.key, c]));
+
 const DEF_MAP: Record<string, PieceDef> = Object.fromEntries(PIECE_DEFS.map(d => [d.id, d]));
+
+// Inventory is tracked per colour for colourable defs ("pawn:red"), per def otherwise.
+const invKey = (defId: string, colour?: string) =>
+  DEF_MAP[defId].colourable && colour ? `${defId}:${colour}` : defId;
+
+// A def with its colour applied — what the renderer actually draws.
+function effectiveDef(def: PieceDef, colour?: string): PieceDef {
+  if (!def.colourable || !colour) return def;
+  const c = COLOUR_MAP[colour];
+  return c ? { ...def, color: c.color, stroke: c.stroke } : def;
+}
 
 // ─── SVG Piece Renderer ──────────────────────────────────────────────────────
 
@@ -224,7 +247,13 @@ const GHOST_SCALE = 1.15;
 
 export default function BoardGamePage() {
   const [inv, setInv] = useState<Record<string, number>>(
-    () => Object.fromEntries(PIECE_DEFS.map(d => [d.id, d.total]))
+    () => Object.fromEntries(PIECE_DEFS.flatMap(d =>
+      d.colourable ? COLOURS.map(c => [`${d.id}:${c.key}`, d.total]) : [[d.id, d.total]]
+    ))
+  );
+  // Currently selected colour per colourable def
+  const [pieceColour, setPieceColour] = useState<Record<string, string>>(
+    () => Object.fromEntries(PIECE_DEFS.filter(d => d.colourable).map(d => [d.id, COLOURS[0].key]))
   );
   const [placed, setPlaced] = useState<PlacedPiece[]>([]);
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
@@ -309,7 +338,7 @@ export default function BoardGamePage() {
         // ── return to inventory ──
         if (d.instanceId) {
           setPlaced(p => p.filter(x => x.instanceId !== d.instanceId));
-          setInv(inv => ({ ...inv, [d.defId]: inv[d.defId] + 1 }));
+          setInv(inv => ({ ...inv, [invKey(d.defId, d.colour)]: inv[invKey(d.defId, d.colour)] + 1 }));
         }
       } else {
         // ── place on board ──
@@ -330,8 +359,8 @@ export default function BoardGamePage() {
           });
         } else {
           const instanceId = `p${idCounter++}`;
-          setPlaced(p => [...p, { instanceId, defId: d.defId, x, y, rotation: d.rotation }]);
-          setInv(inv => ({ ...inv, [d.defId]: inv[d.defId] - 1 }));
+          setPlaced(p => [...p, { instanceId, defId: d.defId, x, y, rotation: d.rotation, colour: d.colour }]);
+          setInv(inv => ({ ...inv, [invKey(d.defId, d.colour)]: inv[invKey(d.defId, d.colour)] - 1 }));
         }
       }
       setDrag(null);
@@ -359,14 +388,15 @@ export default function BoardGamePage() {
 
   const startFromInventory = (defId: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (inv[defId] <= 0) return;
-    setDrag({ defId, instanceId: null, ghostX: e.clientX, ghostY: e.clientY, rotation: 0 });
+    const colour = DEF_MAP[defId].colourable ? pieceColour[defId] : undefined;
+    if (inv[invKey(defId, colour)] <= 0) return;
+    setDrag({ defId, instanceId: null, ghostX: e.clientX, ghostY: e.clientY, rotation: 0, colour });
   };
 
   const startFromBoard = (piece: PlacedPiece, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY, rotation: piece.rotation });
+    setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY, rotation: piece.rotation, colour: piece.colour });
   };
 
   const startEditText = (piece: PlacedPiece, e: React.MouseEvent) => {
@@ -395,7 +425,7 @@ export default function BoardGamePage() {
 
   // ── ghost sizing ─────────────────────────────────────────────────────────
 
-  const dragDef = drag ? DEF_MAP[drag.defId] : null;
+  const dragDef = drag ? effectiveDef(DEF_MAP[drag.defId], drag.colour) : null;
   const gw = dragDef ? dragDef.width * transform.scale * GHOST_SCALE : 0;
   const gh = dragDef ? dragDef.height * transform.scale * GHOST_SCALE : 0;
 
@@ -436,8 +466,10 @@ export default function BoardGamePage() {
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 1, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-          {PIECE_DEFS.map(def => {
-            const avail = inv[def.id];
+          {PIECE_DEFS.map(rawDef => {
+            const selColour = rawDef.colourable ? pieceColour[rawDef.id] : undefined;
+            const def = effectiveDef(rawDef, selColour);
+            const avail = inv[invKey(def.id, selColour)];
             const enabled = avail > 0;
             const thumbW = Math.min(def.width, 44);
             const thumbH = def.shape === 'hex'
@@ -476,6 +508,33 @@ export default function BoardGamePage() {
                   <Box sx={{ fontSize: 11, mt: '2px', color: avail > 0 ? 'rgba(100,210,130,0.85)' : 'rgba(220,80,80,0.7)' }}>
                     {avail} / {def.total}
                   </Box>
+                  {rawDef.colourable && (
+                    <Box
+                      onMouseDown={e => e.stopPropagation()}
+                      sx={{ display: 'flex', gap: 0.5, mt: 0.75 }}
+                    >
+                      {COLOURS.map(c => (
+                        <Box
+                          key={c.key}
+                          onClick={() => setPieceColour(pc => ({ ...pc, [rawDef.id]: c.key }))}
+                          title={c.name}
+                          sx={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: '50%',
+                            bgcolor: c.color,
+                            cursor: 'pointer',
+                            border: c.key === selColour
+                              ? '2px solid rgba(255,255,255,0.9)'
+                              : '2px solid transparent',
+                            boxSizing: 'border-box',
+                            '&:hover': { transform: 'scale(1.2)' },
+                            transition: 'transform 0.1s',
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               </Box>
             );
@@ -514,7 +573,7 @@ export default function BoardGamePage() {
           transformOrigin: '0 0',
         }}>
           {placed.map(piece => {
-            const def = DEF_MAP[piece.defId];
+            const def = effectiveDef(DEF_MAP[piece.defId], piece.colour);
             const isGhost = drag?.instanceId === piece.instanceId;
             return (
               <Box
