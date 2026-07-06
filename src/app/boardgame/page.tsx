@@ -15,7 +15,7 @@ interface PieceDef {
   height: number;
   total: number;
   label?: string;
-  colourable?: boolean; // colour picked from COLOURS at drag time
+  palette?: ColourOption[]; // colour picked from this palette at drag time
 }
 
 interface ColourOption {
@@ -52,21 +52,22 @@ interface Transform {
 
 // ─── Piece Definitions ───────────────────────────────────────────────────────
 
-const PIECE_DEFS: PieceDef[] = [
-  { id: 'forest',   name: 'Forest',      shape: 'hex',    color: '#2d6a2d', stroke: '#1a4a1a', width: 80,  height: 70, total: 6 },
-  { id: 'water',    name: 'Water',       shape: 'hex',    color: '#2565a0', stroke: '#1a3d70', width: 80,  height: 70, total: 4 },
-  { id: 'plains',   name: 'Plains',      shape: 'hex',    color: '#8faa40', stroke: '#5a6e20', width: 80,  height: 70, total: 6 },
-  { id: 'mountain', name: 'Mountain',    shape: 'hex',    color: '#6b6b6b', stroke: '#3a3a3a', width: 80,  height: 70, total: 4 },
-  { id: 'desert',   name: 'Desert',      shape: 'hex',    color: '#d8c078', stroke: '#a08a40', width: 80,  height: 70, total: 4 },
-  { id: 'clay',     name: 'Clay',        shape: 'hex',    color: '#b05c34', stroke: '#7a3a1c', width: 80,  height: 70, total: 4 },
-  { id: 'wheat',    name: 'Wheat',       shape: 'hex',    color: '#e0b83c', stroke: '#a5821e', width: 80,  height: 70, total: 4 },
-  { id: 'room',     name: 'Room',        shape: 'square', color: '#c4a882', stroke: '#7a5010', width: 80,  height: 80, total: 8, label: 'Room' },
-  { id: 'corridor', name: 'Corridor',    shape: 'rect',   color: '#d4b896', stroke: '#7a5010', width: 160, height: 80, total: 4, label: 'Corridor' },
-  { id: 'pawn', name: 'Pawn', shape: 'circle', color: '#c0392b', stroke: '#7b241c', width: 40, height: 40, total: 4, colourable: true },
-  { id: 'road', name: 'Road', shape: 'rect',   color: '#c0392b', stroke: '#7b241c', width: 70, height: 14, total: 8, colourable: true },
+const TILE_COLOURS: ColourOption[] = [
+  { key: 'forest',   name: 'Forest',   color: '#2d6a2d', stroke: '#1a4a1a' },
+  { key: 'water',    name: 'Water',    color: '#2565a0', stroke: '#1a3d70' },
+  { key: 'plains',   name: 'Plains',   color: '#8faa40', stroke: '#5a6e20' },
+  { key: 'mountain', name: 'Mountain', color: '#6b6b6b', stroke: '#3a3a3a' },
+  { key: 'desert',   name: 'Desert',   color: '#d8c078', stroke: '#a08a40' },
+  { key: 'clay',     name: 'Clay',     color: '#b05c34', stroke: '#7a3a1c' },
+  { key: 'wheat',    name: 'Wheat',    color: '#e0b83c', stroke: '#a5821e' },
 ];
 
-const COLOURS: ColourOption[] = [
+const STRUCT_COLOURS: ColourOption[] = [
+  { key: 'tan', name: 'Tan', color: '#c4a882', stroke: '#7a5010' },
+  ...TILE_COLOURS,
+];
+
+const PAWN_COLOURS: ColourOption[] = [
   { key: 'red',    name: 'Red',    color: '#c0392b', stroke: '#7b241c' },
   { key: 'blue',   name: 'Blue',   color: '#2980b9', stroke: '#1a5276' },
   { key: 'green',  name: 'Green',  color: '#27ae60', stroke: '#1a6e3e' },
@@ -74,18 +75,25 @@ const COLOURS: ColourOption[] = [
   { key: 'grey',   name: 'Grey',   color: '#95a5a6', stroke: '#5d6d6e' },
 ];
 
-const COLOUR_MAP: Record<string, ColourOption> = Object.fromEntries(COLOURS.map(c => [c.key, c]));
+const PIECE_DEFS: PieceDef[] = [
+  { id: 'tile',     name: 'Tile',     shape: 'hex',    color: '#2d6a2d', stroke: '#1a4a1a', width: 80,  height: 70, total: 6, palette: TILE_COLOURS },
+  { id: 'room',     name: 'Room',     shape: 'square', color: '#c4a882', stroke: '#7a5010', width: 80,  height: 80, total: 8, palette: STRUCT_COLOURS },
+  { id: 'corridor', name: 'Corridor', shape: 'rect',   color: '#c4a882', stroke: '#7a5010', width: 160, height: 80, total: 4, palette: STRUCT_COLOURS },
+  { id: 'pawn',     name: 'Pawn',     shape: 'circle', color: '#c0392b', stroke: '#7b241c', width: 40,  height: 40, total: 4, palette: PAWN_COLOURS },
+  // Slightly shorter than a hex edge (~40) so roads sit inside tile borders
+  { id: 'road',     name: 'Road',     shape: 'rect',   color: '#c0392b', stroke: '#7b241c', width: 34,  height: 12, total: 8, palette: PAWN_COLOURS },
+];
 
 const DEF_MAP: Record<string, PieceDef> = Object.fromEntries(PIECE_DEFS.map(d => [d.id, d]));
 
-// Inventory is tracked per colour for colourable defs ("pawn:red"), per def otherwise.
+// Inventory is tracked per colour for palette defs ("pawn:red"), per def otherwise.
 const invKey = (defId: string, colour?: string) =>
-  DEF_MAP[defId].colourable && colour ? `${defId}:${colour}` : defId;
+  DEF_MAP[defId].palette && colour ? `${defId}:${colour}` : defId;
 
 // A def with its colour applied — what the renderer actually draws.
 function effectiveDef(def: PieceDef, colour?: string): PieceDef {
-  if (!def.colourable || !colour) return def;
-  const c = COLOUR_MAP[colour];
+  if (!def.palette || !colour) return def;
+  const c = def.palette.find(p => p.key === colour);
   return c ? { ...def, color: c.color, stroke: c.stroke } : def;
 }
 
@@ -248,12 +256,12 @@ const GHOST_SCALE = 1.15;
 export default function BoardGamePage() {
   const [inv, setInv] = useState<Record<string, number>>(
     () => Object.fromEntries(PIECE_DEFS.flatMap(d =>
-      d.colourable ? COLOURS.map(c => [`${d.id}:${c.key}`, d.total]) : [[d.id, d.total]]
+      d.palette ? d.palette.map(c => [`${d.id}:${c.key}`, d.total]) : [[d.id, d.total]]
     ))
   );
-  // Currently selected colour per colourable def
+  // Currently selected colour per palette def
   const [pieceColour, setPieceColour] = useState<Record<string, string>>(
-    () => Object.fromEntries(PIECE_DEFS.filter(d => d.colourable).map(d => [d.id, COLOURS[0].key]))
+    () => Object.fromEntries(PIECE_DEFS.filter(d => d.palette).map(d => [d.id, d.palette![0].key]))
   );
   const [placed, setPlaced] = useState<PlacedPiece[]>([]);
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
@@ -390,7 +398,7 @@ export default function BoardGamePage() {
 
   const startFromInventory = (defId: string, e: React.MouseEvent) => {
     e.preventDefault();
-    const colour = DEF_MAP[defId].colourable ? pieceColour[defId] : undefined;
+    const colour = DEF_MAP[defId].palette ? pieceColour[defId] : undefined;
     if (inv[invKey(defId, colour)] <= 0) return;
     setDrag({ defId, instanceId: null, ghostX: e.clientX, ghostY: e.clientY, rotation: 0, colour });
   };
@@ -469,7 +477,7 @@ export default function BoardGamePage() {
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 1, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
           {PIECE_DEFS.map(rawDef => {
-            const selColour = rawDef.colourable ? pieceColour[rawDef.id] : undefined;
+            const selColour = rawDef.palette ? pieceColour[rawDef.id] : undefined;
             const def = effectiveDef(rawDef, selColour);
             const avail = inv[invKey(def.id, selColour)];
             const enabled = avail > 0;
@@ -510,12 +518,12 @@ export default function BoardGamePage() {
                   <Box sx={{ fontSize: 11, mt: '2px', color: avail > 0 ? 'rgba(100,210,130,0.85)' : 'rgba(220,80,80,0.7)' }}>
                     {avail} / {def.total}
                   </Box>
-                  {rawDef.colourable && (
+                  {rawDef.palette && (
                     <Box
                       onMouseDown={e => e.stopPropagation()}
-                      sx={{ display: 'flex', gap: 0.5, mt: 0.75 }}
+                      sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.75 }}
                     >
-                      {COLOURS.map(c => (
+                      {rawDef.palette.map(c => (
                         <Box
                           key={c.key}
                           onClick={() => setPieceColour(pc => ({ ...pc, [rawDef.id]: c.key }))}
