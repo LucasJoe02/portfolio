@@ -23,6 +23,7 @@ interface PlacedPiece {
   x: number;
   y: number;
   rotation: number; // 0 | 90 | 180 | 270
+  text?: string;
 }
 
 interface DragState {
@@ -46,19 +47,48 @@ const PIECE_DEFS: PieceDef[] = [
   { id: 'water',    name: 'Water',       shape: 'hex',    color: '#2565a0', stroke: '#1a3d70', width: 80,  height: 70, total: 4 },
   { id: 'plains',   name: 'Plains',      shape: 'hex',    color: '#8faa40', stroke: '#5a6e20', width: 80,  height: 70, total: 6 },
   { id: 'mountain', name: 'Mountain',    shape: 'hex',    color: '#6b6b6b', stroke: '#3a3a3a', width: 80,  height: 70, total: 4 },
+  { id: 'desert',   name: 'Desert',      shape: 'hex',    color: '#d8c078', stroke: '#a08a40', width: 80,  height: 70, total: 4 },
+  { id: 'clay',     name: 'Clay',        shape: 'hex',    color: '#b05c34', stroke: '#7a3a1c', width: 80,  height: 70, total: 4 },
+  { id: 'wheat',    name: 'Wheat',       shape: 'hex',    color: '#e0b83c', stroke: '#a5821e', width: 80,  height: 70, total: 4 },
   { id: 'room',     name: 'Room',        shape: 'square', color: '#c4a882', stroke: '#7a5010', width: 80,  height: 80, total: 8, label: 'Room' },
   { id: 'corridor', name: 'Corridor',    shape: 'rect',   color: '#d4b896', stroke: '#7a5010', width: 160, height: 80, total: 4, label: 'Corridor' },
   { id: 'red',      name: 'Red Pawn',    shape: 'circle', color: '#c0392b', stroke: '#7b241c', width: 40,  height: 40, total: 4 },
   { id: 'blue',     name: 'Blue Pawn',   shape: 'circle', color: '#2980b9', stroke: '#1a5276', width: 40,  height: 40, total: 4 },
   { id: 'green',    name: 'Green Pawn',  shape: 'circle', color: '#27ae60', stroke: '#1a6e3e', width: 40,  height: 40, total: 4 },
   { id: 'yellow',   name: 'Yellow Pawn', shape: 'circle', color: '#f39c12', stroke: '#9a6100', width: 40,  height: 40, total: 4 },
+  { id: 'grey',     name: 'Grey Pawn',   shape: 'circle', color: '#95a5a6', stroke: '#5d6d6e', width: 40,  height: 40, total: 4 },
+  { id: 'road-red',    name: 'Red Road',    shape: 'rect', color: '#c0392b', stroke: '#7b241c', width: 70, height: 14, total: 8 },
+  { id: 'road-blue',   name: 'Blue Road',   shape: 'rect', color: '#2980b9', stroke: '#1a5276', width: 70, height: 14, total: 8 },
+  { id: 'road-green',  name: 'Green Road',  shape: 'rect', color: '#27ae60', stroke: '#1a6e3e', width: 70, height: 14, total: 8 },
+  { id: 'road-yellow', name: 'Yellow Road', shape: 'rect', color: '#f39c12', stroke: '#9a6100', width: 70, height: 14, total: 8 },
+  { id: 'road-grey',   name: 'Grey Road',   shape: 'rect', color: '#95a5a6', stroke: '#5d6d6e', width: 70, height: 14, total: 8 },
 ];
 
 const DEF_MAP: Record<string, PieceDef> = Object.fromEntries(PIECE_DEFS.map(d => [d.id, d]));
 
 // ─── SVG Piece Renderer ──────────────────────────────────────────────────────
 
-function PieceShape({ def, w, h, glowing }: { def: PieceDef; w: number; h: number; glowing?: boolean }) {
+function PieceText({ text, w, h, stroke }: { text: string; w: number; h: number; stroke: string }) {
+  return (
+    <text
+      x={w / 2} y={h / 2}
+      dominantBaseline="central"
+      textAnchor="middle"
+      fontSize={Math.max(8, Math.min(13, (w / text.length) * 1.4))}
+      fill="#fff"
+      stroke={stroke}
+      strokeWidth={0.5}
+      paintOrder="stroke"
+      fontFamily="sans-serif"
+      fontWeight="bold"
+      style={{ pointerEvents: 'none' }}
+    >
+      {text}
+    </text>
+  );
+}
+
+function PieceShape({ def, w, h, glowing, text }: { def: PieceDef; w: number; h: number; glowing?: boolean; text?: string }) {
   const glow = glowing
     ? `drop-shadow(0 0 ${Math.max(6, w * 0.1)}px rgba(255,255,255,0.95)) drop-shadow(0 0 ${Math.max(3, w * 0.05)}px ${def.color})`
     : undefined;
@@ -73,6 +103,7 @@ function PieceShape({ def, w, h, glowing }: { def: PieceDef; w: number; h: numbe
     return (
       <svg width={w} height={h} style={{ display: 'block', filter: glow }}>
         <polygon points={pts} fill={def.color} stroke={def.stroke} strokeWidth={2} />
+        {text && <PieceText text={text} w={w} h={h} stroke={def.stroke} />}
       </svg>
     );
   }
@@ -83,6 +114,7 @@ function PieceShape({ def, w, h, glowing }: { def: PieceDef; w: number; h: numbe
       <svg width={w} height={h} style={{ display: 'block', filter: glow }}>
         <circle cx={w / 2} cy={h / 2} r={r - 1} fill={def.color} stroke={def.stroke} strokeWidth={2} />
         <circle cx={w / 2 - r * 0.2} cy={h / 2 - r * 0.25} r={r * 0.2} fill="rgba(255,255,255,0.25)" />
+        {text && <PieceText text={text} w={w} h={h} stroke={def.stroke} />}
       </svg>
     );
   }
@@ -91,18 +123,20 @@ function PieceShape({ def, w, h, glowing }: { def: PieceDef; w: number; h: numbe
   return (
     <svg width={w} height={h} style={{ display: 'block', filter: glow }}>
       <rect x={1} y={1} width={w - 2} height={h - 2} rx={3} fill={def.color} stroke={def.stroke} strokeWidth={2} />
-      {def.label && (
-        <text
-          x={w / 2} y={h / 2 + 4}
-          textAnchor="middle"
-          fontSize={Math.min(13, w / 7)}
-          fill={def.stroke}
-          fontFamily="sans-serif"
-          fontWeight="bold"
-        >
-          {def.label}
-        </text>
-      )}
+      {text
+        ? <PieceText text={text} w={w} h={h} stroke={def.stroke} />
+        : def.label && (
+          <text
+            x={w / 2} y={h / 2 + 4}
+            textAnchor="middle"
+            fontSize={Math.min(13, w / 7)}
+            fill={def.stroke}
+            fontFamily="sans-serif"
+            fontWeight="bold"
+          >
+            {def.label}
+          </text>
+        )}
     </svg>
   );
 }
@@ -195,6 +229,7 @@ export default function BoardGamePage() {
   const [placed, setPlaced] = useState<PlacedPiece[]>([]);
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [editing, setEditing] = useState<{ instanceId: string; value: string; sx: number; sy: number } | null>(null);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -303,6 +338,7 @@ export default function BoardGamePage() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
       if ((e.key === 'r' || e.key === 'R') && dragRef.current) {
         e.preventDefault();
         setDrag(d => d ? { ...d, rotation: (d.rotation + 90) % 360 } : null);
@@ -331,6 +367,22 @@ export default function BoardGamePage() {
     e.preventDefault();
     e.stopPropagation();
     setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY, rotation: piece.rotation });
+  };
+
+  const startEditText = (piece: PlacedPiece, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDrag(null);
+    setEditing({ instanceId: piece.instanceId, value: piece.text ?? '', sx: e.clientX, sy: e.clientY });
+  };
+
+  const commitEditText = () => {
+    if (!editing) return;
+    const text = editing.value.trim();
+    setPlaced(p => p.map(piece =>
+      piece.instanceId === editing.instanceId ? { ...piece, text: text || undefined } : piece
+    ));
+    setEditing(null);
   };
 
   const startPan = (e: React.MouseEvent) => {
@@ -432,7 +484,8 @@ export default function BoardGamePage() {
 
         <Box sx={{ px: 2, py: 1, borderTop: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.2)', fontSize: 10, lineHeight: 1.8 }}>
           Drag onto board · Drag back to return<br />
-          Hold &amp; press <Box component="span" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', px: 0.5, fontSize: 10 }}>R</Box> to rotate
+          Hold &amp; press <Box component="span" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', px: 0.5, fontSize: 10 }}>R</Box> to rotate<br />
+          Double-click a piece to add text
         </Box>
       </Box>
 
@@ -467,6 +520,7 @@ export default function BoardGamePage() {
               <Box
                 key={piece.instanceId}
                 onMouseDown={e => startFromBoard(piece, e)}
+                onDoubleClick={e => startEditText(piece, e)}
                 sx={{
                   position: 'absolute',
                   left: piece.x,
@@ -482,7 +536,7 @@ export default function BoardGamePage() {
                   '&:hover': { filter: 'brightness(1.15)' },
                 }}
               >
-                <PieceShape def={def} w={def.width} h={def.height} />
+                <PieceShape def={def} w={def.width} h={def.height} text={piece.text} />
               </Box>
             );
           })}
@@ -502,6 +556,39 @@ export default function BoardGamePage() {
           </Box>
         )}
       </Box>
+
+      {/* ── Text edit overlay ───────────────────────────────────────────── */}
+      {editing && (
+        <Box
+          component="input"
+          autoFocus
+          value={editing.value}
+          placeholder="Type label…"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing(ed => ed ? { ...ed, value: e.target.value } : null)}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'Enter') commitEditText();
+            if (e.key === 'Escape') setEditing(null);
+          }}
+          onBlur={commitEditText}
+          onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+          sx={{
+            position: 'fixed',
+            left: editing.sx - 70,
+            top: editing.sy - 44,
+            width: 140,
+            zIndex: 10000,
+            bgcolor: 'rgba(10, 16, 26, 0.95)',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 1,
+            outline: 'none',
+            color: '#fff',
+            fontSize: 13,
+            px: 1,
+            py: 0.75,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          }}
+        />
+      )}
 
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {drag && dragDef && (
