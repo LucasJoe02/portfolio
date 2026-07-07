@@ -504,7 +504,7 @@ export default function BoardGamePage() {
           peer.destroy();
           setNet({
             mode: 'lobby', code: '', peers: 0,
-            status: "Couldn't reach the host — check the code is right; if it is, one of your networks is blocking peer connections",
+            status: "Couldn't reach the host. Check the code is right; if it is, one of your networks is blocking peer connections",
           });
         }
       }, 15000);
@@ -884,7 +884,7 @@ export default function BoardGamePage() {
             pointerEvents: 'none',
             color: 'rgba(235,205,160,0.3)',
           }}>
-            <Box sx={{ fontSize: 18, mb: 0.75, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Set the table — drag pieces from the inventory</Box>
+            <Box sx={{ fontSize: 18, mb: 0.75, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Set the table by dragging pieces from the inventory</Box>
             <Box sx={{ fontSize: 12 }}>Scroll to zoom · Right-click drag to pan</Box>
           </Box>
         )}
@@ -1035,7 +1035,7 @@ export default function BoardGamePage() {
           <Box sx={{ width: 340, textAlign: 'center' }}>
             <Box sx={{ fontSize: 26, fontWeight: 700, color: '#f2e4cb', mb: 0.5, fontFamily: 'Georgia, serif' }}>Board Game</Box>
             <Box sx={{ fontSize: 13, color: 'rgba(235,205,160,0.55)', mb: 3, fontStyle: 'italic', fontFamily: 'Georgia, serif' }}>
-              Pull up a chair — play together at a shared table
+              Pull up a chair and play together at a shared table
             </Box>
 
             <Box
