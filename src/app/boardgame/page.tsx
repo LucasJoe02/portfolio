@@ -645,6 +645,7 @@ export default function BoardGamePage() {
   // ── drag start handlers ──────────────────────────────────────────────────
 
   const startFromInventory = (defId: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     const colour = DEF_MAP[defId].palette ? pieceColour[defId] : undefined;
     if (inv[invKey(defId, colour)] <= 0) return;
@@ -652,6 +653,7 @@ export default function BoardGamePage() {
   };
 
   const startFromBoard = (piece: PlacedPiece, e: React.MouseEvent) => {
+    if (e.button !== 0) return; // middle/right click falls through to the board pan
     e.preventDefault();
     e.stopPropagation();
     setDrag({ defId: piece.defId, instanceId: piece.instanceId, ghostX: e.clientX, ghostY: e.clientY, rotation: piece.rotation, colour: piece.colour });
