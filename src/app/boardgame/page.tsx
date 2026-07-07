@@ -467,6 +467,8 @@ export default function BoardGamePage() {
     peerRef.current = peer;
     peer.on('open', () => setNet({ mode: 'host', code, status: '', peers: 0 }));
     peer.on('error', (e: any) => setNet(n => ({ ...n, status: `Connection error: ${e.type}` })));
+    // If the signaling server drops us, new players can't resolve our code — reconnect
+    peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
     peer.on('connection', (conn: any) => {
       conn.on('open', () => {
         connsRef.current.push(conn);
@@ -493,14 +495,31 @@ export default function BoardGamePage() {
       mode: 'lobby',
       status: e.type === 'peer-unavailable' ? 'No game found with that code' : `Connection error: ${e.type}`,
     })));
+    peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
     peer.on('open', () => {
       const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+      // WebRTC failures are often silent — without this the lobby hangs on "Joining…" forever
+      const timeout = setTimeout(() => {
+        if (netRef.current.mode !== 'client') {
+          peer.destroy();
+          setNet({
+            mode: 'lobby', code: '', peers: 0,
+            status: "Couldn't reach the host — check the code is right; if it is, one of your networks is blocking peer connections",
+          });
+        }
+      }, 15000);
       conn.on('open', () => {
+        clearTimeout(timeout);
         connsRef.current = [conn];
         setNet({ mode: 'client', code, status: '', peers: 1 });
       });
+      conn.on('error', (e: any) => {
+        clearTimeout(timeout);
+        setNet(n => n.mode === 'client' ? n : { mode: 'lobby', code: '', status: `Connection failed: ${e.type ?? e}`, peers: 0 });
+      });
       conn.on('data', handleRemote);
       conn.on('close', () => {
+        clearTimeout(timeout);
         connsRef.current = [];
         setNet({ mode: 'lobby', code: '', status: 'The host ended the game', peers: 0 });
       });
