@@ -421,7 +421,6 @@ export default function BoardGamePage() {
   // ── multiplayer plumbing ─────────────────────────────────────────────────
 
   // peerjs has no SSR-safe types here; connections are DataConnection-like
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const peerRef = useRef<any>(null);
   const connsRef = useRef<any[]>([]); // host: one per client · client: [hostConn]
   const suppressBroadcast = useRef(false);
@@ -507,7 +506,6 @@ export default function BoardGamePage() {
       });
     });
   };
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   // Tear down the peer when leaving the page
   useEffect(() => () => { peerRef.current?.destroy(); }, []);
