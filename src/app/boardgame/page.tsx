@@ -338,9 +338,36 @@ function RollingDie({ sides, value, delay, rollId }: { sides: number; value: num
   );
 }
 
+// ─── Multiplayer ─────────────────────────────────────────────────────────────
+
+// Shared game state, broadcast in full on every change (last-writer-wins).
+interface StateMsg {
+  type: 'state';
+  placed: PlacedPiece[];
+  inv: Record<string, number>;
+  diceResults: DiceResult[] | null;
+  rollId: number;
+}
+
+interface NetState {
+  mode: 'lobby' | 'solo' | 'host' | 'client';
+  code: string;
+  status: string; // error / info line shown in the lobby
+  peers: number;
+}
+
+const PEER_PREFIX = 'ljboard-';
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const makeCode = () =>
+  Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 let idCounter = 0;
+// Per-session prefix so piece ids from different players never collide
+let idPrefix = 'x';
+if (typeof window !== 'undefined') idPrefix = Math.random().toString(36).slice(2, 7);
+const newInstanceId = () => `${idPrefix}-${idCounter++}`;
 
 const NAVBAR_HEIGHT = 64;
 const SIDEBAR_WIDTH = 210;
@@ -367,6 +394,8 @@ export default function BoardGamePage() {
   const [diceOpen, setDiceOpen] = useState(false);
   const [rollId, setRollId] = useState(0);
   const [showTotal, setShowTotal] = useState(false);
+  const [net, setNet] = useState<NetState>({ mode: 'lobby', code: '', status: '', peers: 0 });
+  const [joinInput, setJoinInput] = useState('');
 
   const boardRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -380,6 +409,108 @@ export default function BoardGamePage() {
   useEffect(() => { transformRef.current = transform; }, [transform]);
   const placedRef = useRef(placed);
   useEffect(() => { placedRef.current = placed; }, [placed]);
+  const invRef = useRef(inv);
+  useEffect(() => { invRef.current = inv; }, [inv]);
+  const netRef = useRef(net);
+  useEffect(() => { netRef.current = net; }, [net]);
+  const diceResultsRef = useRef(diceResults);
+  useEffect(() => { diceResultsRef.current = diceResults; }, [diceResults]);
+  const rollIdRef = useRef(rollId);
+  useEffect(() => { rollIdRef.current = rollId; }, [rollId]);
+
+  // ── multiplayer plumbing ─────────────────────────────────────────────────
+
+  // peerjs has no SSR-safe types here; connections are DataConnection-like
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const peerRef = useRef<any>(null);
+  const connsRef = useRef<any[]>([]); // host: one per client · client: [hostConn]
+  const suppressBroadcast = useRef(false);
+
+  const currentStateMsg = (): StateMsg => ({
+    type: 'state',
+    placed: placedRef.current,
+    inv: invRef.current,
+    diceResults: diceResultsRef.current,
+    rollId: rollIdRef.current,
+  });
+
+  const handleRemote = (msg: any) => {
+    if (msg?.type !== 'state') return;
+    // Clients just adopt host state; the host re-broadcasts (relay), so don't suppress there.
+    if (netRef.current.mode === 'client') suppressBroadcast.current = true;
+    setPlaced(msg.placed);
+    setInv(msg.inv);
+    setDiceResults(msg.diceResults);
+    setRollId(prev => {
+      if (msg.rollId !== prev) setShowTotal(false);
+      return msg.rollId;
+    });
+    if (msg.diceResults) {
+      const n = msg.diceResults.reduce((a: number, r: DiceResult) => a + r.rolls.length, 0);
+      setTimeout(() => setShowTotal(true), 450 + n * 120 + 250);
+    }
+  };
+
+  // Broadcast our state whenever it changes (unless the change itself came from the network)
+  useEffect(() => {
+    if (suppressBroadcast.current) { suppressBroadcast.current = false; return; }
+    if (netRef.current.mode !== 'host' && netRef.current.mode !== 'client') return;
+    const msg = currentStateMsg();
+    connsRef.current.forEach(c => { if (c.open) c.send(msg); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placed, inv, diceResults, rollId]);
+
+  const hostGame = async () => {
+    setNet(n => ({ ...n, status: 'Creating game…' }));
+    const { default: Peer } = await import('peerjs');
+    const code = makeCode();
+    const peer = new Peer(PEER_PREFIX + code);
+    peerRef.current = peer;
+    peer.on('open', () => setNet({ mode: 'host', code, status: '', peers: 0 }));
+    peer.on('error', (e: any) => setNet(n => ({ ...n, status: `Connection error: ${e.type}` })));
+    peer.on('connection', (conn: any) => {
+      conn.on('open', () => {
+        connsRef.current.push(conn);
+        setNet(n => ({ ...n, peers: connsRef.current.length }));
+        conn.send(currentStateMsg());
+      });
+      conn.on('data', handleRemote);
+      conn.on('close', () => {
+        connsRef.current = connsRef.current.filter(c => c !== conn);
+        setNet(n => ({ ...n, peers: connsRef.current.length }));
+      });
+    });
+  };
+
+  const joinGame = async (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (code.length < 4) { setNet(n => ({ ...n, status: 'Enter the join code first' })); return; }
+    setNet(n => ({ ...n, status: 'Joining…' }));
+    const { default: Peer } = await import('peerjs');
+    const peer = new Peer();
+    peerRef.current = peer;
+    peer.on('error', (e: any) => setNet(n => ({
+      ...n,
+      mode: 'lobby',
+      status: e.type === 'peer-unavailable' ? 'No game found with that code' : `Connection error: ${e.type}`,
+    })));
+    peer.on('open', () => {
+      const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+      conn.on('open', () => {
+        connsRef.current = [conn];
+        setNet({ mode: 'client', code, status: '', peers: 1 });
+      });
+      conn.on('data', handleRemote);
+      conn.on('close', () => {
+        connsRef.current = [];
+        setNet({ mode: 'lobby', code: '', status: 'The host ended the game', peers: 0 });
+      });
+    });
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  // Tear down the peer when leaving the page
+  useEffect(() => () => { peerRef.current?.destroy(); }, []);
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -466,7 +597,7 @@ export default function BoardGamePage() {
             return [...rest, { ...moved, x, y, rotation: d.rotation }];
           });
         } else {
-          const instanceId = `p${idCounter++}`;
+          const instanceId = newInstanceId();
           setPlaced(p => [...p, { instanceId, defId: d.defId, x, y, rotation: d.rotation, colour: d.colour }]);
           setInv(inv => ({ ...inv, [invKey(d.defId, d.colour)]: inv[invKey(d.defId, d.colour)] - 1 }));
         }
@@ -868,6 +999,144 @@ export default function BoardGamePage() {
           )}
         </Box>
       </Box>
+
+      {/* ── Lobby overlay ───────────────────────────────────────────────── */}
+      {net.mode === 'lobby' && (
+        <Box sx={{
+          position: 'fixed',
+          inset: 0,
+          top: NAVBAR_HEIGHT,
+          zIndex: 100,
+          bgcolor: 'rgba(8, 12, 20, 0.92)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Box sx={{ width: 340, textAlign: 'center' }}>
+            <Box sx={{ fontSize: 22, fontWeight: 700, color: '#fff', mb: 0.5 }}>Board Game</Box>
+            <Box sx={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', mb: 3 }}>
+              Play together on a shared board
+            </Box>
+
+            <Box
+              onClick={hostGame}
+              sx={{
+                py: 1.5, mb: 1.5,
+                borderRadius: 1.5,
+                bgcolor: 'rgba(100,180,255,0.15)',
+                border: '1px solid rgba(100,180,255,0.35)',
+                color: '#8ec9ff',
+                fontWeight: 700,
+                fontSize: 15,
+                letterSpacing: 1,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'rgba(100,180,255,0.25)' },
+              }}
+            >
+              HOST GAME
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+              <Box
+                component="input"
+                value={joinInput}
+                placeholder="Join code"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setJoinInput(e.target.value.toUpperCase())}
+                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') joinGame(joinInput); }}
+                sx={{
+                  flex: 1,
+                  bgcolor: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 1.5,
+                  outline: 'none',
+                  color: '#fff',
+                  fontSize: 15,
+                  px: 1.5,
+                  textAlign: 'center',
+                  letterSpacing: 3,
+                  fontFamily: 'monospace',
+                  textTransform: 'uppercase',
+                }}
+              />
+              <Box
+                onClick={() => joinGame(joinInput)}
+                sx={{
+                  px: 2.5, py: 1.5,
+                  borderRadius: 1.5,
+                  bgcolor: 'rgba(100,210,130,0.15)',
+                  border: '1px solid rgba(100,210,130,0.35)',
+                  color: 'rgba(100,210,130,0.95)',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  letterSpacing: 1,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'rgba(100,210,130,0.25)' },
+                }}
+              >
+                JOIN
+              </Box>
+            </Box>
+
+            <Box
+              onClick={() => setNet({ mode: 'solo', code: '', status: '', peers: 0 })}
+              sx={{
+                fontSize: 12,
+                color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer',
+                '&:hover': { color: 'rgba(255,255,255,0.6)' },
+              }}
+            >
+              or play solo
+            </Box>
+
+            {net.status && (
+              <Box sx={{ mt: 2, fontSize: 13, color: 'rgba(255,180,100,0.9)' }}>{net.status}</Box>
+            )}
+          </Box>
+        </Box>
+      )}
+
+      {/* ── Game code / players chip ────────────────────────────────────── */}
+      {(net.mode === 'host' || net.mode === 'client') && (
+        <Box sx={{
+          position: 'fixed',
+          top: NAVBAR_HEIGHT + 12,
+          right: 16,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          bgcolor: 'rgba(12, 18, 28, 0.95)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 1.5,
+          px: 1.5, py: 0.75,
+          fontSize: 12,
+        }}>
+          <Box sx={{ color: 'rgba(255,255,255,0.45)' }}>
+            {net.mode === 'host' ? 'Hosting' : 'Joined'}
+          </Box>
+          <Box
+            onClick={() => navigator.clipboard?.writeText(net.code)}
+            title="Click to copy"
+            sx={{
+              fontFamily: 'monospace',
+              letterSpacing: 2,
+              fontWeight: 700,
+              color: '#8ec9ff',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {net.code}
+          </Box>
+          <Box sx={{ color: 'rgba(100,210,130,0.85)' }}>
+            {net.mode === 'host'
+              ? `${net.peers} joined`
+              : 'connected'}
+          </Box>
+        </Box>
+      )}
 
       {/* ── Text edit overlay ───────────────────────────────────────────── */}
       {editing && (
