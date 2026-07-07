@@ -700,8 +700,8 @@ export default function BoardGamePage() {
         sx={{
           width: SIDEBAR_WIDTH,
           flexShrink: 0,
-          bgcolor: 'rgba(12, 18, 28, 0.98)',
-          borderRight: '1px solid rgba(255,255,255,0.07)',
+          bgcolor: 'rgba(41, 30, 19, 0.98)',
+          borderRight: '1px solid rgba(222,186,132,0.16)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 10,
@@ -709,14 +709,15 @@ export default function BoardGamePage() {
       >
         <Box sx={{
           px: 2, py: 1.5,
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          color: 'rgba(255,255,255,0.5)',
-          fontSize: 11,
+          borderBottom: '1px solid rgba(222,186,132,0.16)',
+          color: 'rgba(235,205,160,0.6)',
+          fontSize: 12,
           fontWeight: 700,
-          letterSpacing: 2,
+          letterSpacing: 3,
           textAlign: 'center',
+          fontFamily: 'Georgia, serif',
         }}>
-          INVENTORY
+          Inventory
         </Box>
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 1, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -741,13 +742,13 @@ export default function BoardGamePage() {
                   gap: 1.5,
                   p: '7px 10px',
                   borderRadius: 1,
-                  bgcolor: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  bgcolor: 'rgba(235,205,160,0.06)',
+                  border: '1px solid rgba(222,186,132,0.14)',
                   cursor: enabled ? 'grab' : 'not-allowed',
                   opacity: enabled ? 1 : 0.3,
                   transition: 'background 0.15s, transform 0.1s',
                   '&:hover': enabled ? {
-                    bgcolor: 'rgba(255,255,255,0.09)',
+                    bgcolor: 'rgba(235,205,160,0.13)',
                     transform: 'scale(1.02)',
                   } : {},
                 }}
@@ -756,10 +757,10 @@ export default function BoardGamePage() {
                   <PieceShape def={def} w={thumbW} h={thumbH} />
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Box sx={{ color: 'rgba(242,228,203,0.92)', fontSize: 12, fontWeight: 600, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {def.name}
                   </Box>
-                  <Box sx={{ fontSize: 11, mt: '2px', color: avail > 0 ? 'rgba(100,210,130,0.85)' : 'rgba(220,80,80,0.7)' }}>
+                  <Box sx={{ fontSize: 11, mt: '2px', color: avail > 0 ? 'rgba(163,184,108,0.85)' : 'rgba(220,80,80,0.7)' }}>
                     {avail} / {def.total}
                   </Box>
                   {rawDef.palette && (
@@ -779,7 +780,7 @@ export default function BoardGamePage() {
                             bgcolor: c.color,
                             cursor: 'pointer',
                             border: c.key === selColour
-                              ? '2px solid rgba(255,255,255,0.9)'
+                              ? '2px solid rgba(242,228,203,0.95)'
                               : '2px solid transparent',
                             boxSizing: 'border-box',
                             '&:hover': { transform: 'scale(1.2)' },
@@ -795,9 +796,9 @@ export default function BoardGamePage() {
           })}
         </Box>
 
-        <Box sx={{ px: 2, py: 1, borderTop: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.2)', fontSize: 10, lineHeight: 1.8 }}>
+        <Box sx={{ px: 2, py: 1, borderTop: '1px solid rgba(222,186,132,0.16)', color: 'rgba(235,205,160,0.35)', fontSize: 10, lineHeight: 1.8 }}>
           Drag onto board · Drag back to return<br />
-          Hold &amp; press <Box component="span" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', px: 0.5, fontSize: 10 }}>R</Box> to rotate<br />
+          Hold &amp; press <Box component="span" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(235,205,160,0.10)', border: '1px solid rgba(235,205,160,0.3)', borderRadius: '3px', px: 0.5, fontSize: 10 }}>R</Box> to rotate<br />
           Double-click a piece to add text
         </Box>
       </Box>
@@ -811,10 +812,10 @@ export default function BoardGamePage() {
           flex: 1,
           position: 'relative',
           overflow: 'hidden',
-          bgcolor: '#0d1520',
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
-          backgroundSize: `${40 * transform.scale}px ${40 * transform.scale}px`,
-          backgroundPosition: `${transform.x % (40 * transform.scale)}px ${transform.y % (40 * transform.scale)}px`,
+          bgcolor: '#2e2113',
+          backgroundImage: `radial-gradient(circle, rgba(235,205,160,0.10) 1px, transparent 1px), radial-gradient(ellipse at 50% 40%, rgba(96,66,36,0.45) 0%, rgba(0,0,0,0) 65%)`,
+          backgroundSize: `${40 * transform.scale}px ${40 * transform.scale}px, 100% 100%`,
+          backgroundPosition: `${transform.x % (40 * transform.scale)}px ${transform.y % (40 * transform.scale)}px, center`,
           cursor: drag ? 'grabbing' : 'default',
         }}
       >
@@ -862,9 +863,9 @@ export default function BoardGamePage() {
             transform: 'translate(-50%, -50%)',
             textAlign: 'center',
             pointerEvents: 'none',
-            color: 'rgba(255,255,255,0.15)',
+            color: 'rgba(235,205,160,0.3)',
           }}>
-            <Box sx={{ fontSize: 18, mb: 0.75 }}>Drag pieces from the inventory</Box>
+            <Box sx={{ fontSize: 18, mb: 0.75, fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Set the table — drag pieces from the inventory</Box>
             <Box sx={{ fontSize: 12 }}>Scroll to zoom · Right-click drag to pan</Box>
           </Box>
         )}
@@ -876,8 +877,8 @@ export default function BoardGamePage() {
             right: 16,
             bottom: 16,
             width: 220,
-            bgcolor: 'rgba(12, 18, 28, 0.95)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: 'rgba(41, 30, 19, 0.96)',
+            border: '1px solid rgba(222,186,132,0.22)',
             borderRadius: 1.5,
             zIndex: 20,
             overflow: 'hidden',
@@ -892,14 +893,15 @@ export default function BoardGamePage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               cursor: 'pointer',
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: 11,
+              color: 'rgba(235,205,160,0.6)',
+              fontSize: 12,
               fontWeight: 700,
-              letterSpacing: 2,
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+              letterSpacing: 3,
+              fontFamily: 'Georgia, serif',
+              '&:hover': { bgcolor: 'rgba(235,205,160,0.06)' },
             }}
           >
-            <span>DICE</span>
+            <span>Dice</span>
             <span>{diceOpen ? '▾' : '▴'}</span>
           </Box>
 
@@ -907,7 +909,7 @@ export default function BoardGamePage() {
             <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               {DICE_TYPES.map(s => (
                 <Box key={s} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600 }}>
+                  <Box sx={{ width: 32, color: 'rgba(240,225,200,0.75)', fontSize: 12, fontWeight: 600 }}>
                     d{s}
                   </Box>
                   {(['-', '+'] as const).map(op => (
@@ -921,12 +923,12 @@ export default function BoardGamePage() {
                         width: 20, height: 20,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '4px',
-                        bgcolor: 'rgba(255,255,255,0.08)',
-                        color: 'rgba(255,255,255,0.7)',
+                        bgcolor: 'rgba(235,205,160,0.10)',
+                        color: 'rgba(240,225,200,0.75)',
                         fontSize: 13,
                         cursor: 'pointer',
                         order: op === '-' ? 0 : 2,
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.16)' },
+                        '&:hover': { bgcolor: 'rgba(235,205,160,0.22)' },
                       }}
                     >
                       {op}
@@ -953,18 +955,18 @@ export default function BoardGamePage() {
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: 1,
-              bgcolor: Object.values(diceCounts).some(c => c > 0) ? 'rgba(100,180,255,0.2)' : 'rgba(255,255,255,0.04)',
-              color: Object.values(diceCounts).some(c => c > 0) ? '#8ec9ff' : 'rgba(255,255,255,0.25)',
-              border: '1px solid rgba(100,180,255,0.25)',
+              bgcolor: Object.values(diceCounts).some(c => c > 0) ? 'rgba(224,164,88,0.20)' : 'rgba(235,205,160,0.06)',
+              color: Object.values(diceCounts).some(c => c > 0) ? '#e5b56f' : 'rgba(255,255,255,0.25)',
+              border: '1px solid rgba(224,164,88,0.35)',
               cursor: Object.values(diceCounts).some(c => c > 0) ? 'pointer' : 'not-allowed',
-              '&:hover': Object.values(diceCounts).some(c => c > 0) ? { bgcolor: 'rgba(100,180,255,0.3)' } : {},
+              '&:hover': Object.values(diceCounts).some(c => c > 0) ? { bgcolor: 'rgba(224,164,88,0.30)' } : {},
             }}
           >
             ROLL
           </Box>
 
           {diceResults && (
-            <Box sx={{ px: 1.5, pb: 1.5, borderTop: '1px solid rgba(255,255,255,0.07)', pt: 1 }}>
+            <Box sx={{ px: 1.5, pb: 1.5, borderTop: '1px solid rgba(222,186,132,0.16)', pt: 1 }}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, justifyContent: 'center' }}>
                 {diceResults.flatMap((r, ri) =>
                   r.rolls.map((v, i) => (
@@ -982,13 +984,13 @@ export default function BoardGamePage() {
                 <Box sx={{
                   display: 'flex', justifyContent: 'space-between',
                   mt: 1, pt: 0.5,
-                  borderTop: '1px solid rgba(255,255,255,0.07)',
+                  borderTop: '1px solid rgba(222,186,132,0.16)',
                   fontSize: 12,
                   opacity: showTotal ? 1 : 0,
                   transition: 'opacity 0.3s',
                 }}>
-                  <Box sx={{ color: 'rgba(255,255,255,0.45)' }}>Total</Box>
-                  <Box sx={{ color: '#8ec9ff', fontWeight: 700 }}>
+                  <Box sx={{ color: 'rgba(235,205,160,0.55)' }}>Total</Box>
+                  <Box sx={{ color: '#e5b56f', fontWeight: 700 }}>
                     {diceResults.flatMap(r => r.rolls).reduce((a, b) => a + b, 0)}
                   </Box>
                 </Box>
@@ -1005,16 +1007,16 @@ export default function BoardGamePage() {
           inset: 0,
           top: NAVBAR_HEIGHT,
           zIndex: 100,
-          bgcolor: 'rgba(8, 12, 20, 0.92)',
+          bgcolor: 'rgba(26, 18, 10, 0.93)',
           backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
           <Box sx={{ width: 340, textAlign: 'center' }}>
-            <Box sx={{ fontSize: 22, fontWeight: 700, color: '#fff', mb: 0.5 }}>Board Game</Box>
-            <Box sx={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', mb: 3 }}>
-              Play together on a shared board
+            <Box sx={{ fontSize: 26, fontWeight: 700, color: '#f2e4cb', mb: 0.5, fontFamily: 'Georgia, serif' }}>Board Game</Box>
+            <Box sx={{ fontSize: 13, color: 'rgba(235,205,160,0.55)', mb: 3, fontStyle: 'italic', fontFamily: 'Georgia, serif' }}>
+              Pull up a chair — play together at a shared table
             </Box>
 
             <Box
@@ -1022,14 +1024,14 @@ export default function BoardGamePage() {
               sx={{
                 py: 1.5, mb: 1.5,
                 borderRadius: 1.5,
-                bgcolor: 'rgba(100,180,255,0.15)',
-                border: '1px solid rgba(100,180,255,0.35)',
-                color: '#8ec9ff',
+                bgcolor: 'rgba(224,164,88,0.16)',
+                border: '1px solid rgba(224,164,88,0.45)',
+                color: '#e5b56f',
                 fontWeight: 700,
                 fontSize: 15,
                 letterSpacing: 1,
                 cursor: 'pointer',
-                '&:hover': { bgcolor: 'rgba(100,180,255,0.25)' },
+                '&:hover': { bgcolor: 'rgba(224,164,88,0.35)' },
               }}
             >
               HOST GAME
@@ -1044,8 +1046,8 @@ export default function BoardGamePage() {
                 onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') joinGame(joinInput); }}
                 sx={{
                   flex: 1,
-                  bgcolor: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.15)',
+                  bgcolor: 'rgba(222,186,132,0.14)',
+                  border: '1px solid rgba(235,205,160,0.3)',
                   borderRadius: 1.5,
                   outline: 'none',
                   color: '#fff',
@@ -1062,14 +1064,14 @@ export default function BoardGamePage() {
                 sx={{
                   px: 2.5, py: 1.5,
                   borderRadius: 1.5,
-                  bgcolor: 'rgba(100,210,130,0.15)',
-                  border: '1px solid rgba(100,210,130,0.35)',
-                  color: 'rgba(100,210,130,0.95)',
+                  bgcolor: 'rgba(163,184,108,0.15)',
+                  border: '1px solid rgba(163,184,108,0.35)',
+                  color: 'rgba(163,184,108,0.95)',
                   fontWeight: 700,
                   fontSize: 15,
                   letterSpacing: 1,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'rgba(100,210,130,0.25)' },
+                  '&:hover': { bgcolor: 'rgba(163,184,108,0.25)' },
                 }}
               >
                 JOIN
@@ -1080,9 +1082,9 @@ export default function BoardGamePage() {
               onClick={() => setNet({ mode: 'solo', code: '', status: '', peers: 0 })}
               sx={{
                 fontSize: 12,
-                color: 'rgba(255,255,255,0.35)',
+                color: 'rgba(222,186,132,0.45)',
                 cursor: 'pointer',
-                '&:hover': { color: 'rgba(255,255,255,0.6)' },
+                '&:hover': { color: 'rgba(235,205,160,0.7)' },
               }}
             >
               or play solo
@@ -1105,13 +1107,13 @@ export default function BoardGamePage() {
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          bgcolor: 'rgba(12, 18, 28, 0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          bgcolor: 'rgba(41, 30, 19, 0.96)',
+          border: '1px solid rgba(222,186,132,0.22)',
           borderRadius: 1.5,
           px: 1.5, py: 0.75,
           fontSize: 12,
         }}>
-          <Box sx={{ color: 'rgba(255,255,255,0.45)' }}>
+          <Box sx={{ color: 'rgba(235,205,160,0.55)' }}>
             {net.mode === 'host' ? 'Hosting' : 'Joined'}
           </Box>
           <Box
@@ -1121,14 +1123,14 @@ export default function BoardGamePage() {
               fontFamily: 'monospace',
               letterSpacing: 2,
               fontWeight: 700,
-              color: '#8ec9ff',
+              color: '#e5b56f',
               cursor: 'pointer',
               '&:hover': { textDecoration: 'underline' },
             }}
           >
             {net.code}
           </Box>
-          <Box sx={{ color: 'rgba(100,210,130,0.85)' }}>
+          <Box sx={{ color: 'rgba(163,184,108,0.85)' }}>
             {net.mode === 'host'
               ? `${net.peers} joined`
               : 'connected'}
@@ -1156,8 +1158,8 @@ export default function BoardGamePage() {
             top: editing.sy - 44,
             width: 140,
             zIndex: 10000,
-            bgcolor: 'rgba(10, 16, 26, 0.95)',
-            border: '1px solid rgba(255,255,255,0.35)',
+            bgcolor: 'rgba(41, 30, 19, 0.97)',
+            border: '1px solid rgba(222,186,132,0.45)',
             borderRadius: 1,
             outline: 'none',
             color: '#fff',
@@ -1193,8 +1195,8 @@ export default function BoardGamePage() {
             top: drag.ghostY - gh / 2,
             pointerEvents: 'none',
             zIndex: 9999,
-            bgcolor: 'rgba(0,0,0,0.75)',
-            border: '1px solid rgba(255,255,255,0.2)',
+            bgcolor: 'rgba(34, 24, 14, 0.88)',
+            border: '1px solid rgba(235,205,160,0.35)',
             borderRadius: 1,
             px: 1,
             py: 0.5,
@@ -1204,20 +1206,20 @@ export default function BoardGamePage() {
             whiteSpace: 'nowrap',
           }}>
             <Box sx={{
-              bgcolor: 'rgba(255,255,255,0.15)',
+              bgcolor: 'rgba(235,205,160,0.3)',
               border: '1px solid rgba(255,255,255,0.3)',
               borderRadius: '3px',
               px: 0.75,
               py: 0.25,
               fontSize: 11,
               fontWeight: 700,
-              color: 'rgba(255,255,255,0.9)',
+              color: 'rgba(242,228,203,0.95)',
               fontFamily: 'monospace',
               lineHeight: 1,
             }}>
               R
             </Box>
-            <Box sx={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+            <Box sx={{ fontSize: 11, color: 'rgba(235,205,160,0.7)' }}>
               rotate {drag.rotation}°
             </Box>
           </Box>
